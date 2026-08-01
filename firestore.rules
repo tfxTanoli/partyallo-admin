@@ -1,0 +1,106 @@
+rules_version = '2';
+
+// PartyAllo — Firestore rules covering BOTH the crew PWA and this admin console.
+//
+// Deploy from this directory with:
+//   firebase deploy --only firestore:rules --project partyallo-event-packing
+//
+// Design:
+//   * The PWA's existing access is unchanged — any signed-in user can still read
+//     and write events / stations / purchases / settings. Tightening that would
+//     break the crew app, which has no admin concept.
+//   * The new surface is `users/{uid}`: it holds the `role` field the admin
+//     console authorises against, so it must NOT be self-writable. Otherwise any
+//     crew member could promote themselves to admin.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && profile().role == 'admin';
+    }
+
+    // The fields a user may change on their own profile document.
+    function onlySelfEditableFields() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['displayName', 'photoUrl', 'email', 'providers', 'lastSignInAt', 'updatedAt']);
+    }
+
+    // Belt and braces alongside the allowlist above. `affectedKeys()` only
+    // reports keys whose value actually CHANGED, so a no-op write of `role` or
+    // `status` passes `hasOnly` vacuously. Asserting the values are carried
+    // through unchanged states the real invariant directly.
+    function preservesPrivileges() {
+      return request.resource.data.role == resource.data.role
+        && request.resource.data.status == resource.data.status;
+    }
+
+    // ---- Profiles & roles -------------------------------------------------
+    match /users/{userId} {
+      // Any signed-in user may read the directory (the console lists it; the
+      // PWA resolves packer display names from it).
+      allow read: if signedIn();
+
+      // First sign-in self-provisioning: you may create only your own document,
+      // and only as a non-privileged, active crew member. Promotion is an
+      // admin-only action below.
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == 'crew'
+        && request.resource.data.status == 'active';
+
+      // You may refresh your own Auth-owned fields, but never your own role or
+      // status. Admins may change anything on any profile.
+      allow update: if isAdmin()
+        || (signedIn()
+            && request.auth.uid == userId
+            && preservesPrivileges()
+            && onlySelfEditableFields());
+
+      allow delete: if isAdmin();
+    }
+
+    // ---- Shared operational data (unchanged for the PWA) ------------------
+    match /events/{eventId} {
+      allow read, write: if signedIn();
+    }
+
+    match /stations/{stationId} {
+      allow read, write: if signedIn();
+    }
+
+    match /purchases/{purchaseId} {
+      allow read, write: if signedIn();
+    }
+
+    match /settings/{settingsId} {
+      allow read, write: if signedIn();
+    }
+
+    // ---- Legacy per-user data (pre-shared-collection migration) -----------
+    //
+    // Matches exactly two further segments (`/users/{uid}/stations/{id}` etc.)
+    // rather than a recursive `{document=**}`. That is load-bearing: a recursive
+    // wildcard matches ZERO segments too, so it would also match the parent
+    // `/users/{uid}` document — and because rules are OR'd, that would hand
+    // every crew member write access to their own `role` field.
+    match /users/{userId}/{legacyCollection}/{docId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+
+    // ---- Default deny ------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

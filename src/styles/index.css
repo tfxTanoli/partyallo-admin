@@ -1,0 +1,487 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* -------------------------------------------------------------------------- */
+/*  Design tokens — PartyAllo Admin                                            */
+/*  Every colour is exposed as a CSS variable so the Settings page can          */
+/*  re-brand the entire product at runtime (see `BrandingProvider`).            */
+/* -------------------------------------------------------------------------- */
+
+:root {
+  /* Brand */
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --primary-soft: #eff6ff;
+  --secondary: #14b8a6;
+  --secondary-foreground: #ffffff;
+  --secondary-soft: #f0fdfa;
+
+  /* Semantic */
+  --success: #22c55e;
+  --success-foreground: #ffffff;
+  --success-soft: #f0fdf4;
+  --warning: #f59e0b;
+  --warning-foreground: #ffffff;
+  --warning-soft: #fffbeb;
+  --danger: #ef4444;
+  --danger-foreground: #ffffff;
+  --danger-soft: #fef2f2;
+  --info: #6366f1;
+  --info-foreground: #ffffff;
+  --info-soft: #eef2ff;
+
+  /* Surfaces */
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: var(--primary);
+
+  /* Chrome */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #334155;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-border: #e8edf3;
+  --navbar: rgb(255 255 255 / 0.72);
+
+  /* Glass */
+  --glass: rgb(255 255 255 / 0.68);
+  --glass-border: rgb(255 255 255 / 0.6);
+
+  /* Elevation */
+  --shadow-soft: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06);
+  --shadow-card: 0 1px 3px rgb(15 23 42 / 0.04), 0 8px 24px -12px rgb(15 23 42 / 0.12);
+  --shadow-lifted: 0 2px 6px rgb(15 23 42 / 0.06), 0 18px 40px -16px rgb(15 23 42 / 0.22);
+  --shadow-pop: 0 10px 38px -10px rgb(15 23 42 / 0.22), 0 10px 20px -15px rgb(15 23 42 / 0.16);
+
+  /* Chart series — validated for CVD separation and contrast against the
+     light chart surface. Do not reuse the themeable `--primary` here: series
+     identity must stay fixed when the user re-brands the workspace. */
+  --chart-complete: #16a34a;
+  --chart-in-progress: #2563eb;
+  --chart-users: #2563eb;
+  --chart-grid: #e2e8f0;
+
+  --radius: 0.875rem;
+}
+
+.dark {
+  --primary-soft: rgb(37 99 235 / 0.18);
+  --secondary-soft: rgb(20 184 166 / 0.16);
+  --success-soft: rgb(34 197 94 / 0.16);
+  --warning-soft: rgb(245 158 11 / 0.16);
+  --danger-soft: rgb(239 68 68 / 0.16);
+  --info-soft: rgb(99 102 241 / 0.16);
+
+  --background: #0f172a;
+  --foreground: #e2e8f0;
+  --card: #16203a;
+  --card-foreground: #e2e8f0;
+  --popover: #17223d;
+  --popover-foreground: #e2e8f0;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --accent: #1e293b;
+  --accent-foreground: #f1f5f9;
+  --border: #26334d;
+  --input: #2b3a56;
+
+  --sidebar: #101c33;
+  --sidebar-foreground: #cbd5e1;
+  --sidebar-accent: #1c2942;
+  --sidebar-border: #1f2b44;
+  --navbar: rgb(15 23 42 / 0.72);
+
+  --glass: rgb(22 32 58 / 0.7);
+  --glass-border: rgb(148 163 184 / 0.12);
+
+  --shadow-soft: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-card: 0 1px 3px rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(0 0 0 / 0.5);
+  --shadow-lifted: 0 2px 6px rgb(0 0 0 / 0.35), 0 18px 40px -16px rgb(0 0 0 / 0.6);
+  --shadow-pop: 0 10px 38px -10px rgb(0 0 0 / 0.6), 0 10px 20px -15px rgb(0 0 0 / 0.5);
+
+  /* Re-stepped for the dark chart surface — not an automatic flip. */
+  --chart-complete: #16a34a;
+  --chart-in-progress: #3b82f6;
+  --chart-users: #3b82f6;
+  --chart-grid: #26334d;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary-soft: var(--secondary-soft);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-soft: var(--info-soft);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-border: var(--sidebar-border);
+
+  --shadow-soft: var(--shadow-soft);
+  --shadow-card: var(--shadow-card);
+  --shadow-lifted: var(--shadow-lifted);
+  --shadow-pop: var(--shadow-pop);
+
+  --radius-xl: var(--radius);
+  --radius-2xl: calc(var(--radius) + 0.375rem);
+  --radius-3xl: calc(var(--radius) + 0.75rem);
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes ripple {
+  from {
+    transform: scale(0);
+    opacity: 0.35;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pop-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes dialog-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+@keyframes drawer-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes drawer-out-right {
+  from {
+    transform: none;
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes drawer-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes drawer-out-left {
+  from {
+    transform: none;
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@layer base {
+  *,
+  ::after,
+  ::before {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--primary) 22%, transparent);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--muted-foreground) 35%, transparent) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: color-mix(in srgb, var(--muted-foreground) 30%, transparent);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in srgb, var(--muted-foreground) 50%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .glass {
+    background-color: var(--glass);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+  }
+
+  .glass-navbar {
+    background-color: var(--navbar);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  .text-gradient {
+    background-image: linear-gradient(
+      100deg,
+      var(--primary) 0%,
+      color-mix(in srgb, var(--primary) 45%, var(--secondary)) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .surface-gradient {
+    background-image: radial-gradient(
+        900px circle at 5% -12%,
+        color-mix(in srgb, var(--primary) 9%, transparent),
+        transparent 45%
+      ),
+      radial-gradient(
+        720px circle at 98% 0%,
+        color-mix(in srgb, var(--secondary) 9%, transparent),
+        transparent 42%
+      );
+  }
+
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .skeleton-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--foreground) 7%, transparent) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.35s ease-out both;
+  }
+
+  /* Radix state-driven transitions (dropdown / select / popover / tooltip). */
+  .anim-pop[data-state='open'] {
+    animation: pop-in 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .anim-pop[data-state='closed'] {
+    animation: pop-out 0.12s ease-in forwards;
+  }
+
+  .anim-overlay[data-state='open'] {
+    animation: overlay-in 0.2s ease-out;
+  }
+
+  .anim-overlay[data-state='closed'] {
+    animation: overlay-out 0.18s ease-in forwards;
+  }
+
+  .anim-dialog[data-state='open'] {
+    animation: dialog-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .anim-dialog[data-state='closed'] {
+    animation: dialog-out 0.16s ease-in forwards;
+  }
+
+  .anim-drawer-right[data-state='open'] {
+    animation: drawer-in-right 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .anim-drawer-right[data-state='closed'] {
+    animation: drawer-out-right 0.24s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  }
+
+  .anim-drawer-left[data-state='open'] {
+    animation: drawer-in-left 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .anim-drawer-left[data-state='closed'] {
+    animation: drawer-out-left 0.24s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Recharts polish */
+.recharts-cartesian-axis-tick text {
+  fill: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.recharts-cartesian-grid line {
+  stroke: var(--border);
+}
+
+.recharts-surface:focus {
+  outline: none;
+}
