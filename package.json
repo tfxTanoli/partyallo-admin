@@ -12,7 +12,8 @@
     "users:sync:apply": "node scripts/sync-users.mjs --apply",
     "rules:deploy": "firebase deploy --only firestore:rules --project partyallo-event-packing",
     "rules:verify": "node scripts/verify-rules.mjs",
-    "firestore:inspect": "node scripts/inspect-firestore.mjs"
+    "firestore:inspect": "node scripts/inspect-firestore.mjs",
+    "auth:domains": "node scripts/authorize-domain.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.5.7",

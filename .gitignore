@@ -36,3 +36,10 @@ serviceAccountKey.json
 *.njsproj
 *.sln
 *.sw?
+
+# Vercel CLI local link + pulled env
+.vercel
+.env*
+# Re-allow the committed template. This negation MUST stay below `.env*`,
+# otherwise the later pattern wins and the template is ignored again.
+!.env.example

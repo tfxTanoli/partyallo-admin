@@ -1,0 +1,18 @@
+# Belt and braces on top of .gitignore — the Vercel CLI uploads local files,
+# so anything secret is named explicitly here too.
+serviceAccountKey.json
+*serviceAccount*.json
+*-firebase-adminsdk-*.json
+*.pem
+*.key
+.env
+.env.local
+.env.*.local
+
+# Not needed to build the site.
+scripts/
+.rules-backup/
+firestore.rules
+firebase.json
+node_modules
+dist
