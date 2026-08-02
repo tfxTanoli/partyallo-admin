@@ -2,7 +2,9 @@ import { useCallback, useMemo } from 'react';
 import {
   Eye,
   Filter,
+  MailCheck,
   Pencil,
+  Plus,
   RotateCcw,
   ShieldCheck,
   ShieldOff,
@@ -25,14 +27,17 @@ import { RowActions } from '@/components/common/row-actions';
 import { ConfirmDialog } from '@/components/common/confirm-dialog';
 import { UserRoleBadge, UserStatusBadge } from '@/components/common/status-badge';
 import { useDataTable } from '@/hooks/use-data-table';
-import { useEntityDisclosure } from '@/hooks/use-disclosure';
+import { useDisclosure, useEntityDisclosure } from '@/hooks/use-disclosure';
 import {
   useDeleteUser,
+  useInviteUser,
+  useResendInvite,
   useSetUserRole,
   useUpdateUser,
   useUsers,
 } from '@/features/users/hooks/use-users';
 import { UserFormDialog } from '@/features/users/user-form-dialog';
+import { InviteUserDialog } from '@/features/users/invite-user-dialog';
 import { UserDetailsDrawer } from '@/features/users/user-details-drawer';
 import { useAuth } from '@/providers/auth-provider';
 import { USER_ROLE_META, USER_STATUS_META } from '@/constants/status';
@@ -65,11 +70,14 @@ export default function UsersPage() {
 
   const { data, isPending, isError, refetch } = useUsers(table.query);
 
+  const inviteDialog = useDisclosure();
   const editDialog = useEntityDisclosure<User>();
   const detailsDrawer = useEntityDisclosure<User>();
   const deleteDialog = useEntityDisclosure<User>();
   const roleDialog = useEntityDisclosure<User>();
 
+  const inviteUser = useInviteUser();
+  const resendInvite = useResendInvite();
   const updateUser = useUpdateUser();
   const setUserRole = useSetUserRole();
   const deleteUser = useDeleteUser();
@@ -200,6 +208,14 @@ export default function UsersPage() {
               <Pencil />
               Edit profile
             </DropdownMenuItem>
+            {/* Only password accounts have a password to reset; Google users
+                manage theirs with Google. */}
+            {user.providers.includes('password') ? (
+              <DropdownMenuItem onSelect={() => resendInvite.mutate(user.email)}>
+                <MailCheck />
+                Resend invite
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuSeparator />
             <DropdownMenuItem disabled={isSelf(user)} onSelect={() => roleDialog.open(user)}>
               {user.role === 'admin' ? <ShieldOff /> : <ShieldCheck />}
@@ -217,7 +233,7 @@ export default function UsersPage() {
         ),
       },
     ],
-    [deleteDialog, detailsDrawer, editDialog, isSelf, roleDialog],
+    [deleteDialog, detailsDrawer, editDialog, isSelf, resendInvite, roleDialog],
   );
 
   const hasActiveQuery = table.debouncedSearch.length > 0 || table.activeFilterCount > 0;
@@ -236,6 +252,11 @@ export default function UsersPage() {
               {adminCount === 1 ? '' : 's'} on this page
             </span>
           ) : null
+        }
+        actions={
+          <Button leftIcon={<Plus />} onClick={inviteDialog.open}>
+            Add user
+          </Button>
         }
       />
 
@@ -299,7 +320,12 @@ export default function UsersPage() {
                   <EmptyState
                     icon={UsersIcon}
                     title="No accounts yet"
-                    description="Accounts appear here as soon as someone signs up in the PartyAllo crew app."
+                    description="Add your first team member, or wait for someone to sign up in the PartyAllo crew app."
+                    action={
+                      <Button leftIcon={<Plus />} onClick={inviteDialog.open}>
+                        Add user
+                      </Button>
+                    }
                   />
                 )
               }
@@ -319,6 +345,13 @@ export default function UsersPage() {
           </>
         )}
       </Card>
+
+      <InviteUserDialog
+        open={inviteDialog.isOpen}
+        onOpenChange={inviteDialog.setOpen}
+        loading={inviteUser.isPending}
+        onSubmit={(values) => inviteUser.mutateAsync(values)}
+      />
 
       <UserFormDialog
         open={editDialog.isOpen}

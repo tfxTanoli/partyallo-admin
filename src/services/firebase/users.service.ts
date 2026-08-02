@@ -2,6 +2,7 @@ import { collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from 'firebase
 import { NotFoundError, type UserService } from '../contracts';
 import { COLLECTIONS, getDb } from './config';
 import { mapUser } from './mappers';
+import { inviteUser, resendInvite } from './invite.service';
 import { nowIso, stripUndefined } from './converters';
 import { matchesSearch, paginate, sortRows } from '@/utils/table';
 import { DEFAULT_PAGE_SIZE } from '@/constants/app';
@@ -53,6 +54,10 @@ export const firebaseUserService: UserService = {
     await updateDoc(doc(getDb(), COLLECTIONS.users, id), { role, updatedAt: nowIso() });
     return readUser(id);
   },
+
+  invite: inviteUser,
+
+  resendInvite,
 
   async remove(id) {
     // Removes the profile + role document only. The Firebase Auth account still

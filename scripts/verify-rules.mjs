@@ -16,7 +16,15 @@ import { cert, initializeApp as initAdmin } from 'firebase-admin/app';
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithCustomToken, signOut } from 'firebase/auth';
-import { collection, doc, getDocs, getFirestore, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  getFirestore,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const serviceAccount = JSON.parse(
@@ -97,6 +105,23 @@ if (promote.ok) {
   console.log('        (restored test@example.com back to crew)');
 }
 
+// The invite flow writes a profile for a uid that is not the caller's.
+const PROBE_UID = 'rules-probe-admin-create';
+const probeProfile = {
+  email: 'probe@example.invalid',
+  displayName: 'Rules Probe',
+  role: 'admin',
+  status: 'active',
+  providers: ['password'],
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
+
+const adminCreates = await attempt(() => setDoc(doc(db, 'users', PROBE_UID), probeProfile));
+record('admin creates a profile for another uid', 'allowed — powers Add user', adminCreates.ok,
+  adminCreates.code);
+if (adminCreates.ok) await deleteDoc(doc(db, 'users', PROBE_UID)).catch(() => {});
+
 /* -------------------------------------------------------------------------- */
 console.log('\n=== AS CREW (khayentan@gmail.com) ===');
 const crewUid = await signInAs('khayentan@gmail.com');
@@ -144,6 +169,23 @@ record('crew refreshes own lastSignInAt', 'allowed — needed at sign-in', selfR
 
 const crewDeletes = await attempt(() => updateDoc(doc(db, 'users', throwaway.uid), { displayName: 'hacked' }));
 record("crew edits another's profile", 'DENIED', !crewDeletes.ok, crewDeletes.code);
+
+// The `allow create` branch widened for the invite flow — prove it did not
+// open a hole. A crew member must not be able to mint a profile at all.
+const crewCreatesForOther = await attempt(() =>
+  setDoc(doc(db, 'users', 'rules-probe-crew-create'), {
+    email: 'x@example.invalid',
+    displayName: 'Injected',
+    role: 'admin',
+    status: 'active',
+    providers: ['password'],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }),
+);
+record('crew creates a profile for another uid', 'DENIED', !crewCreatesForOther.ok,
+  crewCreatesForOther.code);
+if (crewCreatesForOther.ok) await deleteDoc(doc(db, 'users', 'rules-probe-crew-create')).catch(() => {});
 
 await signOut(auth).catch(() => {});
 

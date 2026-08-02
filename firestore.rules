@@ -51,13 +51,19 @@ service cloud.firestore {
       // PWA resolves packer display names from it).
       allow read: if signedIn();
 
-      // First sign-in self-provisioning: you may create only your own document,
-      // and only as a non-privileged, active crew member. Promotion is an
-      // admin-only action below.
-      allow create: if signedIn()
-        && request.auth.uid == userId
-        && request.resource.data.role == 'crew'
-        && request.resource.data.status == 'active';
+      // Two ways a profile document comes into existence:
+      //
+      //  1. An admin invites someone from the Users screen. They may set any
+      //     role, because they could set it a moment later via update anyway.
+      //  2. First sign-in self-provisioning. You may create only your OWN
+      //     document, and only as a non-privileged, active crew member —
+      //     otherwise anyone could mint themselves an admin profile on the way
+      //     in. Promotion stays an admin-only action.
+      allow create: if isAdmin()
+        || (signedIn()
+            && request.auth.uid == userId
+            && request.resource.data.role == 'crew'
+            && request.resource.data.status == 'active');
 
       // You may refresh your own Auth-owned fields, but never your own role or
       // status. Admins may change anything on any profile.

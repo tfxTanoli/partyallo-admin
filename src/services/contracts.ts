@@ -5,6 +5,7 @@ import type {
   CatalogueSortField,
   DashboardOverview,
   EventFilters,
+  InviteUserFormValues,
   EventFormValues,
   EventSortField,
   ListQuery,
@@ -18,6 +19,7 @@ import type {
   UserRole,
   UserSortField,
 } from '@/types';
+import type { InviteResult } from './firebase/invite.service';
 
 /** The typed surface every screen talks to. Implemented by `services/firebase`. */
 
@@ -27,6 +29,10 @@ export interface UserService {
   update(id: string, values: Partial<UserFormValues>): Promise<User>;
   /** Promote or demote. Rejected by `firestore.rules` unless the caller is an admin. */
   setRole(id: string, role: UserRole): Promise<User>;
+  /** Creates the Auth account *and* the profile, then emails a set-password link. */
+  invite(values: InviteUserFormValues): Promise<InviteResult>;
+  /** Re-send the set-password email to an invitee who never signed in. */
+  resendInvite(email: string): Promise<void>;
   remove(id: string): Promise<void>;
 }
 

@@ -44,3 +44,14 @@ export interface UserFormValues {
   role: UserRole;
   status: UserStatus;
 }
+
+/**
+ * Inviting creates the Firebase Auth account as well as the profile document,
+ * so it takes an email. The admin never sets a password — the invitee does,
+ * via the reset link they are emailed.
+ */
+export interface InviteUserFormValues {
+  displayName: string;
+  email: string;
+  role: UserRole;
+}
