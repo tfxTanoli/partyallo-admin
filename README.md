@@ -30,6 +30,48 @@ Sign in at `/login` with a Firebase account that has the **admin** role
 | `npm run rules:deploy` | Deploy `firestore.rules` |
 | `npm run rules:verify` | Assert the deployed rules behave, as a real admin *and* a real crew member |
 | `npm run firestore:inspect` | Print the live collection shapes |
+| `npm run auth:domains` | List Firebase Auth authorized domains; pass one to add it |
+
+---
+
+## Screens
+
+| Route | What it covers |
+| --- | --- |
+| `/login` | Google or email + password. Non-admins are signed straight back out with a clear message. |
+| `/` | Live metrics, events-by-month and users-growth charts, recent events with packing progress, the crew's real packing activity, newest accounts, outstanding-purchases banner. |
+| `/users` | Directory, search / filter / sort, details drawer, **Add user**, promote and demote, resend invite. |
+| `/events` | List with live packing progress; All / Upcoming / Past tabs and a status filter. |
+| `/events/:id` | Packing progress, the full packing list (who packed what, when), per-station rollup, the crew's activity log. |
+| `/catalogue` | Stations as cards or a table; create, edit, duplicate, delete. |
+| `/purchases` | The shopping list: summary tiles that double as filters, overdue flagging, row-level purchased toggle, full CRUD. |
+| `/settings` | Company info and crew-app lists (shared with the PWA), console theme and brand colour (local to the browser). |
+
+Unknown paths redirect to an in-shell 404.
+
+---
+
+## Deployment
+
+Deployed to Vercel at **partyallo-admin.vercel.app**. Pushes to `main`
+auto-deploy; `npx vercel deploy --prod` deploys the working tree.
+
+`vercel.json` pins the Vite preset and — the important part — rewrites every
+unmatched path to `index.html`. Without that, loading `/users` directly or
+refreshing on it returns a 404, because Vercel looks for a file at that path.
+
+Three things that are easy to get wrong:
+
+1. **Env vars must exist before the build.** Vite inlines `VITE_*` at build
+   time, so setting them after a deploy does nothing until you redeploy.
+   `.env` is git-ignored, so Vercel needs its own copy of all six.
+2. **New domains need authorising in Firebase.** Google sign-in fails with
+   `auth/unauthorized-domain` on any origin not in Firebase Auth's allowlist.
+   Email/password keeps working, which makes it easy to misdiagnose. Fix with
+   `npm run auth:domains -- yourdomain.com`.
+3. **`vercel.json` rejects unknown properties.** JSON has no comment syntax; a
+   stray `comment` key fails schema validation and aborts the build before it
+   starts.
 
 ---
 
@@ -54,7 +96,10 @@ users/{uid} = {
 }
 ```
 
-**What the rules guarantee** (all asserted by `npm run rules:verify`):
+**What the rules guarantee.** `npm run rules:verify` asserts all of this against
+the live project, signed in as a real admin and a real crew member via
+short-lived custom tokens — including that the crew PWA's access has not
+regressed. Run it after any rules edit.
 
 | Actor | Action | Result |
 | --- | --- | --- |
@@ -64,7 +109,9 @@ users/{uid} = {
 | crew | change own `status` | **denied** |
 | crew | refresh own `displayName` / `lastSignInAt` | allowed (needed at sign-in) |
 | crew | edit another person's profile | **denied** |
+| crew | create a profile for another uid | **denied** |
 | admin | list `users`, change any role | allowed |
+| admin | create a profile for another uid | allowed — powers **Add user** |
 
 Two details in `firestore.rules` are load-bearing and worth not "simplifying":
 
@@ -77,6 +124,23 @@ Two details in `firestore.rules` are load-bearing and worth not "simplifying":
    through unchanged) **as well as** a field allowlist. `diff().affectedKeys()`
    only reports keys whose value actually changed, so an allowlist alone lets a
    no-op write of `role` pass vacuously.
+
+### Adding someone
+
+**Users → Add user** creates the Firebase Auth account *and* the profile
+document, then emails the invitee a link to set their own password. The admin
+never sees or handles a password.
+
+The client SDK's `createUserWithEmailAndPassword` signs the **calling** session
+in as the new user, which would kick the admin out of their own console. So the
+account is created through a throwaway secondary Firebase app
+(`services/firebase/invite.service.ts`), which has its own Auth instance and is
+deleted immediately afterwards. `inMemoryPersistence` on that instance is
+load-bearing: without it the secondary session lands in localStorage and can
+race with the primary one on the next page load.
+
+**Resend invite** (row menu) re-sends the set-password email. It only shows for
+password accounts — Google users manage their password with Google.
 
 ### Promoting someone
 
@@ -105,8 +169,8 @@ Every screen reads the real collections. Nothing is mocked.
 | --- | --- | --- |
 | `events` | Events, Event details, Dashboard | Status is the PWA's `Packing → Loading → Loaded → Complete`. `date` is a `yyyy-MM-dd` **string**; `createdAt`/`updatedAt` are ISO **strings**, not Timestamps. |
 | `stations` | Station Catalogue | Categories are free text (the crew app lets users add their own), so the filter options are derived from what is in use. |
-| `users` | Users | Profile + role. Backfilled from Firebase Auth by `users:sync`. |
-| `purchases` | Dashboard banner | Outstanding-item count only; the registry itself is managed in the crew app. |
+| `users` | Users | Profile + role. Backfilled from Firebase Auth by `users:sync`, and written directly by the Add user flow. |
+| `purchases` | Purchases, Dashboard banner | Full CRUD. `category`, `supplier` and `unit` are free text in the crew app, so the form suggests values already in use rather than locking them to a union. Overdue is **derived** (outstanding and past `requiredDate`), never stored. |
 | `settings/app` | Settings | Shared document. Writes are **merged**, so keys this console does not surface (`themeId`, `defaultItems`) survive a save from here. |
 
 `services/firebase/mappers.ts` reads every document defensively. The PWA has
@@ -115,8 +179,8 @@ evolved, so older records are missing fields newer ones have (`logs`, `paxMode`,
 document can never blank out a whole screen.
 
 **What this console deliberately does not do:** assign stations to events, edit
-packing lists, or tick items. Those are crew-app workflows tied to servings
-maths; the console shows them read-only and links back.
+an event's packing list, or tick packing items. Those are crew-app workflows
+tied to the servings maths; the console shows them read-only.
 
 ---
 
@@ -125,7 +189,7 @@ maths; the console shows them read-only and links back.
 ```
 src/
 ├─ components/{ui,common,charts}   primitives, shared building blocks, Recharts wrappers
-├─ features/                       dashboard, users, events, catalogue, settings (+ their hooks)
+├─ features/                       dashboard, users, events, catalogue, purchases, settings (+ hooks)
 ├─ layouts/                        shell, sidebar, navbar, global search
 ├─ pages/                          one lazily-loaded component per route
 ├─ hooks/                          useDataTable, useDebounce, useDisclosure, …
@@ -138,8 +202,8 @@ src/
 
 - **`services/contracts.ts`** is the typed surface every screen talks to;
   `services/firebase/` implements it. Screens never import Firebase directly.
-- **`useDataTable`** owns search / sort / filter / pagination for all three list
-  screens and emits the memoised `ListQuery` used as both the service argument
+- **`useDataTable`** owns search / sort / filter / pagination for every list
+  screen and emits the memoised `ListQuery` used as both the service argument
   and the TanStack Query key.
 - **Filtering and sorting happen in memory** after a full collection read. This
   is deliberate: `date` is a string, free-text search has no Firestore index, and
