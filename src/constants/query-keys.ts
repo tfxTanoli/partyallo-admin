@@ -1,4 +1,10 @@
-import type { CatalogueFilters, EventFilters, ListQuery, UserFilters } from '@/types';
+import type {
+  CatalogueFilters,
+  EventFilters,
+  ListQuery,
+  PurchaseFilters,
+  UserFilters,
+} from '@/types';
 
 /** Centralised TanStack Query key factory — keeps invalidation predictable. */
 export const queryKeys = {
@@ -30,6 +36,9 @@ export const queryKeys = {
   },
   purchases: {
     all: ['purchases'] as const,
+    list: (query: ListQuery<PurchaseFilters>) =>
+      [...queryKeys.purchases.all, 'list', query] as const,
+    every: () => [...queryKeys.purchases.all, 'every'] as const,
     outstanding: () => [...queryKeys.purchases.all, 'outstanding'] as const,
   },
 } as const;

@@ -11,7 +11,10 @@ import type {
   ListQuery,
   Paginated,
   PartyEvent,
+  PurchaseFilters,
+  PurchaseFormValues,
   PurchaseItem,
+  PurchaseSortField,
   StationCatalogue,
   User,
   UserFilters,
@@ -68,7 +71,16 @@ export interface SettingsService {
 }
 
 export interface PurchaseService {
+  list(query: ListQuery<PurchaseFilters, PurchaseSortField>): Promise<Paginated<PurchaseItem>>;
+  /** Unpaginated — used to derive summary counts and filter options. */
+  listAll(): Promise<PurchaseItem[]>;
   listOutstanding(): Promise<PurchaseItem[]>;
+  getById(id: string): Promise<PurchaseItem>;
+  create(values: PurchaseFormValues): Promise<PurchaseItem>;
+  update(id: string, values: Partial<PurchaseFormValues>): Promise<PurchaseItem>;
+  /** Dedicated toggle so a row checkbox does not round-trip the whole record. */
+  setPurchased(id: string, purchased: boolean): Promise<PurchaseItem>;
+  remove(id: string): Promise<void>;
 }
 
 export interface DataSource {

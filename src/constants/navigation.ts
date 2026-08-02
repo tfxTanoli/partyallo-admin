@@ -3,6 +3,7 @@ import {
   Users,
   CalendarDays,
   Boxes,
+  ShoppingCart,
   Settings as SettingsIcon,
   type LucideIcon,
 } from 'lucide-react';
@@ -55,6 +56,12 @@ export const NAV_SECTIONS: NavSection[] = [
         to: ROUTES.catalogue,
         icon: Boxes,
         description: 'Reusable packing templates',
+      },
+      {
+        label: 'Purchases',
+        to: ROUTES.purchases,
+        icon: ShoppingCart,
+        description: 'What still needs buying',
       },
     ],
   },

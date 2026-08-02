@@ -1,7 +1,8 @@
 import type { DataSource } from '../contracts';
-import { firebaseCatalogueService, firebasePurchaseService } from './catalogues.service';
+import { firebaseCatalogueService } from './catalogues.service';
 import { firebaseDashboardService } from './dashboard.service';
 import { firebaseEventService } from './events.service';
+import { firebasePurchaseService } from './purchases.service';
 import { firebaseSettingsService } from './settings.service';
 import { firebaseUserService } from './users.service';
 

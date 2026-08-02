@@ -120,20 +120,24 @@ export default function DashboardPage() {
           </motion.section>
 
           {overview.data && overview.data.outstandingPurchases > 0 ? (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex flex-wrap items-center gap-3 rounded-2xl border border-warning/25 bg-warning-soft px-5 py-4"
-            >
-              <ShoppingCart className="size-4 shrink-0 text-warning" />
-              <p className="flex-1 text-sm text-foreground">
-                <strong className="font-semibold">
-                  {overview.data.outstandingPurchases} item
-                  {overview.data.outstandingPurchases === 1 ? '' : 's'}
-                </strong>{' '}
-                still outstanding in the purchase registry.
-              </p>
-              <span className="text-xs text-muted-foreground">Managed in the crew app</span>
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+              <Link
+                to={ROUTES.purchases}
+                className="flex flex-wrap items-center gap-3 rounded-2xl border border-warning/25 bg-warning-soft px-5 py-4 transition-colors hover:border-warning/40 hover:brightness-[0.99]"
+              >
+                <ShoppingCart className="size-4 shrink-0 text-warning" />
+                <p className="flex-1 text-sm text-foreground">
+                  <strong className="font-semibold">
+                    {overview.data.outstandingPurchases} item
+                    {overview.data.outstandingPurchases === 1 ? '' : 's'}
+                  </strong>{' '}
+                  still outstanding in the purchase registry.
+                </p>
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-warning">
+                  Manage purchases
+                  <ArrowRight className="size-3.5" />
+                </span>
+              </Link>
             </motion.div>
           ) : null}
 

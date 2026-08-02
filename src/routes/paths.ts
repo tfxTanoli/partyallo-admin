@@ -5,6 +5,7 @@ export const ROUTES = {
   events: '/events',
   eventDetails: '/events/:eventId',
   catalogue: '/catalogue',
+  purchases: '/purchases',
   settings: '/settings',
 } as const;
 

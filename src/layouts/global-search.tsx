@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Boxes, CalendarDays, CornerDownLeft, Search, Users } from 'lucide-react';
+import { Boxes, CalendarDays, CornerDownLeft, Search, ShoppingCart, Users } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { api } from '@/services';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -17,14 +17,14 @@ import { formatDate } from '@/utils/format';
 
 interface SearchResult {
   id: string;
-  group: 'Events' | 'Users' | 'Stations';
+  group: 'Events' | 'Users' | 'Stations' | 'Purchases';
   title: string;
   subtitle: string;
   to: string;
   icon: typeof CalendarDays;
 }
 
-const GROUP_ORDER: SearchResult['group'][] = ['Events', 'Users', 'Stations'];
+const GROUP_ORDER: SearchResult['group'][] = ['Events', 'Users', 'Stations', 'Purchases'];
 
 export function GlobalSearch() {
   const navigate = useNavigate();
@@ -42,10 +42,11 @@ export function GlobalSearch() {
     enabled: dialog.isOpen && debounced.trim().length > 1,
     queryFn: async (): Promise<SearchResult[]> => {
       const listQuery = { search: debounced, page: 1, pageSize: 5 };
-      const [events, users, stations] = await Promise.all([
+      const [events, users, stations, purchases] = await Promise.all([
         api.events.list(listQuery),
         api.users.list(listQuery),
         api.catalogues.list(listQuery),
+        api.purchases.list(listQuery),
       ]);
 
       return [
@@ -74,6 +75,14 @@ export function GlobalSearch() {
           subtitle: `${station.category} · ${station.defaultPackingList.length} items`,
           to: ROUTES.catalogue,
           icon: Boxes,
+        })),
+        ...purchases.items.map<SearchResult>((item) => ({
+          id: item.id,
+          group: 'Purchases',
+          title: item.name,
+          subtitle: `${item.supplier} · ${item.purchased ? 'purchased' : 'outstanding'}`,
+          to: ROUTES.purchases,
+          icon: ShoppingCart,
         })),
       ];
     },

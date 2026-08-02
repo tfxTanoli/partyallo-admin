@@ -13,6 +13,7 @@ const UsersPage = lazy(() => import('@/pages/users-page'));
 const EventsPage = lazy(() => import('@/pages/events-page'));
 const EventDetailsPage = lazy(() => import('@/pages/event-details-page'));
 const CataloguePage = lazy(() => import('@/pages/catalogue-page'));
+const PurchasesPage = lazy(() => import('@/pages/purchases-page'));
 const SettingsPage = lazy(() => import('@/pages/settings-page'));
 const NotFoundPage = lazy(() => import('@/pages/not-found-page'));
 
@@ -38,6 +39,7 @@ const routes: RouteObject[] = [
           { path: ROUTES.events, element: lazyRoute(<EventsPage />) },
           { path: ROUTES.eventDetails, element: lazyRoute(<EventDetailsPage />) },
           { path: ROUTES.catalogue, element: lazyRoute(<CataloguePage />) },
+          { path: ROUTES.purchases, element: lazyRoute(<PurchasesPage />) },
           { path: ROUTES.settings, element: lazyRoute(<SettingsPage />) },
           { path: '404', element: lazyRoute(<NotFoundPage />) },
           { path: '*', element: <Navigate to="/404" replace /> },

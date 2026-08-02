@@ -35,17 +35,3 @@ export interface CatalogueFormValues {
 }
 
 export type CatalogueViewMode = 'grid' | 'table';
-
-/** `purchases` — the purchase registry the PWA maintains. */
-export interface PurchaseItem {
-  id: string;
-  name: string;
-  qtyNeeded: number;
-  unit: string;
-  notes?: string;
-  requiredDate?: string;
-  category: string;
-  supplier: string;
-  purchased: boolean;
-  createdAt: ISODateString;
-}

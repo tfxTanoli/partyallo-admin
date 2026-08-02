@@ -7,9 +7,9 @@ import {
   getDocs,
   updateDoc,
 } from 'firebase/firestore';
-import { NotFoundError, type CatalogueService, type PurchaseService } from '../contracts';
+import { NotFoundError, type CatalogueService } from '../contracts';
 import { COLLECTIONS, getDb } from './config';
-import { mapPurchase, mapStation } from './mappers';
+import { mapStation } from './mappers';
 import { nowIso, stripUndefined } from './converters';
 import { matchesSearch, paginate, sortRows } from '@/utils/table';
 import { DEFAULT_PAGE_SIZE } from '@/constants/app';
@@ -111,12 +111,5 @@ export const firebaseCatalogueService: CatalogueService = {
 
   async remove(id) {
     await deleteDoc(doc(getDb(), COLLECTIONS.stations, id));
-  },
-};
-
-export const firebasePurchaseService: PurchaseService = {
-  async listOutstanding() {
-    const snapshot = await getDocs(collection(getDb(), COLLECTIONS.purchases));
-    return snapshot.docs.map(mapPurchase).filter((item) => !item.purchased);
   },
 };
