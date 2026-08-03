@@ -21,11 +21,38 @@ export function nowIso(): ISODateString {
   return new Date().toISOString();
 }
 
-/** Firestore rejects `undefined`; strip those keys before any write. */
+/** Plain objects are safe to rebuild; `Date`, `Timestamp` and `FieldValue` are not. */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (value === null || typeof value !== 'object') return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+/**
+ * Firestore rejects `undefined`; strip those keys before any write.
+ *
+ * This walks nested objects and arrays: mappers deliberately return `undefined`
+ * for absent optional fields (see `mapPackingItem`), so a document round-tripped
+ * through a mapper carries `undefined` deep inside arrays like
+ * `defaultPackingList` — a top-level strip alone leaves those in place and the
+ * write throws.
+ */
 export function stripUndefined<T extends Record<string, unknown>>(input: T): Partial<T> {
+  return stripUndefinedDeep(input) as Partial<T>;
+}
+
+function stripUndefinedDeep(value: unknown): unknown {
+  // Firestore rejects `undefined` array elements too, and a hole is never intentional.
+  if (Array.isArray(value)) {
+    return value.filter((entry) => entry !== undefined).map(stripUndefinedDeep);
+  }
+  if (!isPlainObject(value)) return value;
+
   return Object.fromEntries(
-    Object.entries(input).filter(([, value]) => value !== undefined),
-  ) as Partial<T>;
+    Object.entries(value)
+      .filter(([, entry]) => entry !== undefined)
+      .map(([key, entry]) => [key, stripUndefinedDeep(entry)]),
+  );
 }
 
 export function asString(value: unknown, fallback = ''): string {
