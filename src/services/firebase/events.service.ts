@@ -12,6 +12,7 @@ import { COLLECTIONS, getDb } from './config';
 import { mapEvent } from './mappers';
 import { nowIso, stripUndefined } from './converters';
 import { matchesSearch, paginate, sortRows } from '@/utils/table';
+import { sortByEventSchedule } from '@/utils/schedule';
 import { DEFAULT_PAGE_SIZE } from '@/constants/app';
 import { todayKey } from '@/utils/format';
 import type { PartyEvent } from '@/types';
@@ -51,9 +52,12 @@ export const firebaseEventService: EventService = {
       return matchesSearch(event, search, ['eventName', 'clientName', 'venue']);
     });
 
-    const sorted = sort
-      ? sortRows(rows, sort.field as keyof PartyEvent, sort.direction)
-      : sortRows(rows, 'date', 'desc');
+    // Sorting by date means "running order": same-day events are ordered by
+    // their start time, which is the sequence the crew packs and loads in.
+    const sorted =
+      !sort || sort.field === 'date'
+        ? sortByEventSchedule(rows, sort?.direction ?? 'desc')
+        : sortRows(rows, sort.field as keyof PartyEvent, sort.direction);
 
     return paginate(sorted, page, pageSize);
   },
@@ -75,6 +79,7 @@ export const firebaseEventService: EventService = {
       clientName: values.clientName,
       venue: values.venue,
       date: values.date,
+      startTime: values.startTime,
       eventDuration: values.eventDuration,
       status: values.status,
       servings: values.servings,

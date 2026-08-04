@@ -54,6 +54,12 @@ export interface PartyEvent {
   venue: string;
   /** `yyyy-MM-dd`, exactly as the PWA date input stores it. */
   date: string;
+  /**
+   * 24h `HH:mm` start time, as the PWA time input stores it. Optional: events
+   * booked before this field existed carry no time and are ordered after the
+   * timed ones on their day.
+   */
+  startTime?: string;
   eventDuration: string;
   status: EventStatus;
   servings: number;
@@ -84,6 +90,7 @@ export interface EventFormValues {
   clientName: string;
   venue: string;
   date: string;
+  startTime: string;
   eventDuration: string;
   status: EventStatus;
   servings: number;

@@ -27,11 +27,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const eventSchema = z.object({
+const baseEventSchema = z.object({
   eventName: z.string().trim().min(2, 'Enter at least 2 characters').max(90, 'Name is too long'),
   clientName: z.string().trim().min(1, 'Enter the client name'),
   venue: z.string().trim().min(3, 'Enter the venue address'),
   date: z.string().min(1, 'Pick an event date'),
+  // Required: it is what orders the crew app's packing lists, earliest first.
+  startTime: z
+    .string()
+    .trim()
+    .regex(/^\d{2}:\d{2}$/, 'Pick a start time'),
   eventDuration: z.string().trim().min(1, 'Enter a duration, e.g. 2h 0m'),
   status: z.enum(EVENT_STATUSES),
   servings: z
@@ -42,11 +47,28 @@ const eventSchema = z.object({
   notes: z.string().trim().max(1000, 'Keep notes under 1000 characters').optional(),
 });
 
+/**
+ * A start time is required on every new booking, so the crew app's running order
+ * is complete. Events created before the field existed stay editable without
+ * having to invent one — but once a time is set it cannot be cleared.
+ */
+function buildEventSchema(timeRequired: boolean) {
+  return timeRequired
+    ? baseEventSchema
+    : baseEventSchema.extend({
+        startTime: z
+          .string()
+          .trim()
+          .regex(/^(\d{2}:\d{2})?$/, 'Pick a start time'),
+      });
+}
+
 const EMPTY: EventFormValues = {
   eventName: '',
   clientName: '',
   venue: '',
   date: format(new Date(), 'yyyy-MM-dd'),
+  startTime: '',
   eventDuration: '2h 0m',
   status: 'Packing',
   servings: 100,
@@ -69,6 +91,7 @@ export function EventFormDialog({
   loading = false,
 }: EventFormDialogProps) {
   const isEdit = Boolean(event);
+  const timeRequired = !isEdit || Boolean(event?.startTime);
 
   const {
     register,
@@ -77,7 +100,7 @@ export function EventFormDialog({
     reset,
     formState: { errors },
   } = useForm<EventFormValues>({
-    resolver: zodResolver(eventSchema),
+    resolver: zodResolver(buildEventSchema(timeRequired)),
     defaultValues: EMPTY,
   });
 
@@ -90,6 +113,7 @@ export function EventFormDialog({
             clientName: event.clientName,
             venue: event.venue,
             date: event.date,
+            startTime: event.startTime ?? '',
             eventDuration: event.eventDuration,
             status: event.status,
             servings: event.servings,
@@ -147,6 +171,15 @@ export function EventFormDialog({
             <div className="grid gap-5 sm:grid-cols-2">
               <Field label="Event date" required error={errors.date?.message}>
                 <Input type="date" invalid={Boolean(errors.date)} {...register('date')} />
+              </Field>
+
+              <Field
+                label="Start time"
+                required={timeRequired}
+                hint="Orders the crew app's packing lists — earliest event first."
+                error={errors.startTime?.message}
+              >
+                <Input type="time" invalid={Boolean(errors.startTime)} {...register('startTime')} />
               </Field>
 
               <Field

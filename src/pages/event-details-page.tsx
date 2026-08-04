@@ -30,6 +30,7 @@ import { computePackingProgress, summariseStations } from '@/features/events/pac
 import { useDeleteEvent, useEvent, useUpdateEvent } from '@/features/events/hooks/use-events';
 import { useDisclosure } from '@/hooks/use-disclosure';
 import { formatDate, formatNumber, isUpcoming } from '@/utils/format';
+import { formatClockTime, formatEventTimeRange } from '@/utils/schedule';
 import { ROUTES } from '@/routes/paths';
 
 function DetailsSkeleton() {
@@ -115,7 +116,7 @@ export default function EventDetailsPage() {
             </span>
             <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
               <Clock className="size-3.5" />
-              {event.eventDuration || '—'}
+              {formatEventTimeRange(event) || event.eventDuration || '—'}
             </span>
             <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
               <Users className="size-3.5" />
@@ -259,9 +260,11 @@ export default function EventDetailsPage() {
                   </div>
                   <div className="rounded-xl border border-border bg-muted/35 p-3.5">
                     <p className="text-lg font-semibold text-foreground">
-                      {event.eventDuration || '—'}
+                      {formatClockTime(event.startTime) || '—'}
                     </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">Duration</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Starts{event.eventDuration ? ` · ${event.eventDuration}` : ''}
+                    </p>
                   </div>
                 </div>
                 <p className="pt-1 text-xs text-muted-foreground">

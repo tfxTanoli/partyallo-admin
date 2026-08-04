@@ -37,6 +37,7 @@ import { EventFormDialog } from '@/features/events/event-form-dialog';
 import { computePackingProgress } from '@/features/events/packing';
 import { EVENT_STATUS_META } from '@/constants/status';
 import { formatDate, formatNumber, isUpcoming, truncate } from '@/utils/format';
+import { formatEventTimeRange } from '@/utils/schedule';
 import { eventDetailsPath } from '@/routes/paths';
 import { EVENT_STATUSES } from '@/types';
 import type { EventFilters, EventSortField, PartyEvent, SelectOption } from '@/types';
@@ -112,13 +113,14 @@ export default function EventsPage() {
       },
       {
         id: 'date',
-        header: 'Date',
+        header: 'Date & time',
         sortField: 'date',
         cell: (event) => (
           <div className="whitespace-nowrap">
             <p className="text-foreground">{event.date ? formatDate(event.date) : '—'}</p>
             <p className="text-xs text-muted-foreground">
-              {event.date && isUpcoming(event.date) ? 'Upcoming' : 'Past'} · {event.eventDuration}
+              {formatEventTimeRange(event) || event.eventDuration || 'No time set'}
+              {event.date ? ` · ${isUpcoming(event.date) ? 'Upcoming' : 'Past'}` : ''}
             </p>
           </div>
         ),

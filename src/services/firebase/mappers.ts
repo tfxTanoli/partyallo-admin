@@ -75,6 +75,7 @@ export function mapEvent(snapshot: QueryDocumentSnapshot<DocumentData>): PartyEv
     clientName: asString(data.clientName),
     venue: asString(data.venue),
     date: asString(data.date),
+    startTime: typeof data.startTime === 'string' && data.startTime ? data.startTime : undefined,
     eventDuration: asString(data.eventDuration),
     status: asEnum(data.status, EVENT_STATUSES, 'Packing'),
     servings: asNumber(data.servings),

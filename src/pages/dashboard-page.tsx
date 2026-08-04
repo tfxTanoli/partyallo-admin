@@ -36,6 +36,7 @@ import { computePackingProgress } from '@/features/events/packing';
 import { useDisclosure } from '@/hooks/use-disclosure';
 import { useAuth } from '@/providers/auth-provider';
 import { formatDate, formatNumber, formatRelative } from '@/utils/format';
+import { formatClockTime } from '@/utils/schedule';
 import { ROUTES, eventDetailsPath } from '@/routes/paths';
 
 function greeting(): string {
@@ -231,8 +232,11 @@ export default function DashboardPage() {
                             </span>
                             <span className="block truncate text-xs text-muted-foreground">
                               {event.clientName || 'No client'} ·{' '}
-                              {event.date ? formatDate(event.date) : 'No date'} ·{' '}
-                              {formatNumber(event.servings)} pax
+                              {event.date ? formatDate(event.date) : 'No date'}
+                              {formatClockTime(event.startTime)
+                                ? `, ${formatClockTime(event.startTime)}`
+                                : ''}{' '}
+                              · {formatNumber(event.servings)} pax
                             </span>
                           </span>
 
