@@ -45,6 +45,16 @@ export interface EventService {
   listRecent(limit?: number): Promise<PartyEvent[]>;
   create(values: EventFormValues): Promise<PartyEvent>;
   update(id: string, values: Partial<EventFormValues>): Promise<PartyEvent>;
+  /**
+   * Creates a new event from `sourceId`'s setup (stations, packing list, pax),
+   * with `values` applied on top. Packing progress, statuses and the activity
+   * log are reset; the source event is not modified.
+   */
+  duplicate(sourceId: string, values: EventFormValues): Promise<PartyEvent>;
+  /** Assigns catalogue stations to an event, cloning each one's default packing list. */
+  addStations(eventId: string, stationIds: string[], actor: string): Promise<PartyEvent>;
+  /** Removes one station slot (by its instance key) and its packing items. */
+  removeStation(eventId: string, instanceKey: string, actor: string): Promise<PartyEvent>;
   remove(id: string): Promise<void>;
 }
 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   CalendarDays,
   CalendarPlus,
+  Copy,
   Eye,
   Pencil,
   Plus,
@@ -30,6 +31,7 @@ import { useDisclosure, useEntityDisclosure } from '@/hooks/use-disclosure';
 import {
   useCreateEvent,
   useDeleteEvent,
+  useDuplicateEvent,
   useEvents,
   useUpdateEvent,
 } from '@/features/events/hooks/use-events';
@@ -38,7 +40,7 @@ import { computePackingProgress } from '@/features/events/packing';
 import { EVENT_STATUS_META } from '@/constants/status';
 import { formatDate, formatNumber, isUpcoming, truncate } from '@/utils/format';
 import { formatEventTimeRange } from '@/utils/schedule';
-import { eventDetailsPath } from '@/routes/paths';
+import { eventDetailsPath, type EventDetailsLocationState } from '@/routes/paths';
 import { EVENT_STATUSES } from '@/types';
 import type { EventFilters, EventSortField, PartyEvent, SelectOption } from '@/types';
 
@@ -70,10 +72,12 @@ export default function EventsPage() {
 
   const createDialog = useDisclosure();
   const editDialog = useEntityDisclosure<PartyEvent>();
+  const duplicateDialog = useEntityDisclosure<PartyEvent>();
   const deleteDialog = useEntityDisclosure<PartyEvent>();
 
   const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent();
+  const duplicateEvent = useDuplicateEvent();
   const deleteEvent = useDeleteEvent();
 
   const confirmDelete = useCallback(async () => {
@@ -182,6 +186,10 @@ export default function EventsPage() {
               <Pencil />
               Edit event
             </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => duplicateDialog.open(event)}>
+              <Copy />
+              Duplicate
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem destructive onSelect={() => deleteDialog.open(event)}>
               <Trash2 />
@@ -191,7 +199,7 @@ export default function EventsPage() {
         ),
       },
     ],
-    [deleteDialog, editDialog, openDetails],
+    [deleteDialog, duplicateDialog, editDialog, openDetails],
   );
 
   const hasActiveQuery = table.debouncedSearch.length > 0 || table.activeFilterCount > 0;
@@ -282,7 +290,7 @@ export default function EventsPage() {
                   <EmptyState
                     icon={CalendarPlus}
                     title="No events on the books"
-                    description="Create your first booking, then assign stations to it in the PartyAllo crew app."
+                    description="Create your first booking, then add its live stations straight away."
                     action={
                       <Button leftIcon={<Plus />} onClick={createDialog.open}>
                         Create event
@@ -312,7 +320,13 @@ export default function EventsPage() {
         open={createDialog.isOpen}
         onOpenChange={createDialog.setOpen}
         loading={createEvent.isPending}
-        onSubmit={(values) => createEvent.mutateAsync(values)}
+        onSubmit={async (values) => {
+          const created = await createEvent.mutateAsync(values);
+          // Step 2: the details page opens the station picker for the new event.
+          navigate(eventDetailsPath(created.id), {
+            state: { addStations: true } satisfies EventDetailsLocationState,
+          });
+        }}
       />
 
       <EventFormDialog
@@ -321,6 +335,20 @@ export default function EventsPage() {
         event={editDialog.entity}
         loading={updateEvent.isPending}
         onSubmit={(values) => updateEvent.mutateAsync({ id: editDialog.entity!.id, values })}
+      />
+
+      <EventFormDialog
+        open={duplicateDialog.isOpen}
+        onOpenChange={duplicateDialog.setOpen}
+        duplicateFrom={duplicateDialog.entity}
+        loading={duplicateEvent.isPending}
+        onSubmit={async (values) => {
+          const copy = await duplicateEvent.mutateAsync({
+            sourceId: duplicateDialog.entity!.id,
+            values,
+          });
+          navigate(eventDetailsPath(copy.id));
+        }}
       />
 
       <ConfirmDialog

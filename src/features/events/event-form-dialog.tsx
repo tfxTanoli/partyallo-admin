@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Copy } from 'lucide-react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -78,7 +79,10 @@ const EMPTY: EventFormValues = {
 export interface EventFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Edit this event. */
   event?: PartyEvent | null;
+  /** Create a new event pre-filled from this one (its stations are copied on save). */
+  duplicateFrom?: PartyEvent | null;
   onSubmit: (values: EventFormValues) => Promise<unknown>;
   loading?: boolean;
 }
@@ -87,11 +91,29 @@ export function EventFormDialog({
   open,
   onOpenChange,
   event,
+  duplicateFrom,
   onSubmit,
   loading = false,
 }: EventFormDialogProps) {
   const isEdit = Boolean(event);
+  const isDuplicate = !isEdit && Boolean(duplicateFrom);
+  // A duplicate is a new booking, so it needs a start time like any other.
   const timeRequired = !isEdit || Boolean(event?.startTime);
+
+  // Guards against a double-click submitting twice before `loading` re-renders.
+  const submittingRef = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
+  const busy = loading || submitting;
+
+  const duplicateSummary = useMemo(() => {
+    if (!duplicateFrom) return null;
+    const stations = new Set(
+      duplicateFrom.packingList
+        .filter((item) => item.stationName)
+        .map((item) => item.stationInstanceId ?? item.stationName),
+    ).size;
+    return { stations, items: duplicateFrom.packingList.length };
+  }, [duplicateFrom]);
 
   const {
     register,
@@ -106,42 +128,83 @@ export function EventFormDialog({
 
   useEffect(() => {
     if (!open) return;
+    const source = event ?? duplicateFrom;
     reset(
-      event
+      source
         ? {
-            eventName: event.eventName,
-            clientName: event.clientName,
-            venue: event.venue,
-            date: event.date,
-            startTime: event.startTime ?? '',
-            eventDuration: event.eventDuration,
-            status: event.status,
-            servings: event.servings,
-            notes: event.notes ?? '',
+            eventName: event ? source.eventName : `${source.eventName} (Copy)`,
+            clientName: source.clientName,
+            venue: source.venue,
+            date: source.date,
+            startTime: source.startTime ?? '',
+            eventDuration: source.eventDuration,
+            // A copy starts its own packing run.
+            status: event ? source.status : 'Packing',
+            servings: source.servings,
+            notes: source.notes ?? '',
           }
         : EMPTY,
     );
-  }, [open, event, reset]);
+  }, [open, event, duplicateFrom, reset]);
 
   const submit = handleSubmit(async (values) => {
-    await onSubmit(values);
-    onOpenChange(false);
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    try {
+      await onSubmit(values);
+      onOpenChange(false);
+    } catch {
+      // The mutation hook has already shown an error toast; keep the form open
+      // with the user's input so they can retry.
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
   });
 
+  const handleOpenChange = (next: boolean) => {
+    // Closing mid-save would hide the result of a write that is still running.
+    if (!next && busy) return;
+    onOpenChange(next);
+  };
+
+  const title = isEdit ? 'Edit event' : isDuplicate ? 'Duplicate event' : 'Create an event';
+  const description = isEdit
+    ? 'These details are shared live with the PartyAllo crew app.'
+    : isDuplicate
+      ? `A new event based on ${duplicateFrom?.eventName}. Adjust the details, then save — the original is not changed.`
+      : 'Step 1 of 2 — save the booking details. You will add its live stations next.';
+  const submitLabel = isEdit ? 'Save changes' : isDuplicate ? 'Create duplicate' : 'Create & add stations';
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent size="lg">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit event' : 'Create an event'}</DialogTitle>
-          <DialogDescription>
-            {isEdit
-              ? 'These details are shared live with the PartyAllo crew app.'
-              : 'Creates the booking. Stations and packing lists are assigned in the crew app.'}
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <form noValidate onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
           <DialogBody className="space-y-5 pb-6">
+            {duplicateSummary ? (
+              <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3.5 text-xs leading-relaxed text-muted-foreground">
+                <Copy className="mt-0.5 size-4 shrink-0 text-primary" />
+                <p>
+                  Copies{' '}
+                  <strong className="text-foreground">
+                    {duplicateSummary.stations} {duplicateSummary.stations === 1 ? 'station' : 'stations'}
+                  </strong>{' '}
+                  and{' '}
+                  <strong className="text-foreground">
+                    {duplicateSummary.items} packing {duplicateSummary.items === 1 ? 'item' : 'items'}
+                  </strong>
+                  , with per-station pax. Packed/loaded ticks, station statuses and the activity log
+                  start fresh.
+                </p>
+              </div>
+            ) : null}
+
             <div className="grid gap-5 sm:grid-cols-2">
               <Field label="Event name" required error={errors.eventName?.message}>
                 <Input
@@ -252,11 +315,16 @@ export function EventFormDialog({
           </DialogBody>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
-            <Button type="submit" loading={loading}>
-              {isEdit ? 'Save changes' : 'Create event'}
+            <Button type="submit" loading={busy}>
+              {submitLabel}
             </Button>
           </DialogFooter>
         </form>

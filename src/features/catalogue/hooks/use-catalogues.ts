@@ -1,19 +1,40 @@
+import { useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { api } from '@/services';
 import { queryKeys } from '@/constants/query-keys';
+import { queryStations } from '@/utils/catalogue';
 import type {
   CatalogueFilters,
   CatalogueFormValues,
   CatalogueSortField,
   ListQuery,
+  StationCatalogue,
 } from '@/types';
 
+/**
+ * One page of the catalogue, derived in memory from the full station list.
+ *
+ * This deliberately shares the `every()` query instead of calling
+ * `api.catalogues.list` per page: every station document embeds its whole
+ * default packing list, so each read of the collection is ~570 KB. Querying per
+ * page meant two full reads on open (this plus `useAllCatalogues`) and another
+ * on every page, sort, filter and search keystroke — the screen sat on
+ * skeletons for many seconds on an ordinary connection.
+ */
 export function useCatalogues(query: ListQuery<CatalogueFilters, CatalogueSortField>) {
+  const select = useCallback(
+    (stations: StationCatalogue[]) => queryStations(stations, query),
+    [query],
+  );
+
   return useQuery({
-    queryKey: queryKeys.catalogues.list(query),
-    queryFn: () => api.catalogues.list(query),
-    placeholderData: (previous) => previous,
+    queryKey: queryKeys.catalogues.every(),
+    queryFn: () => api.catalogues.listAll(),
+    // Short enough that edits made in the crew app show up on the next visit;
+    // a background refetch keeps the current cards on screen meanwhile.
+    staleTime: 60_000,
+    select,
   });
 }
 

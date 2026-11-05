@@ -1,8 +1,9 @@
-import type {
-  EventStationSummary,
-  PackingProgress,
-  PartyEvent,
-  StationStatus,
+import {
+  STATION_STATUSES,
+  type EventStationSummary,
+  type PackingProgress,
+  type PartyEvent,
+  type StationStatus,
 } from '@/types';
 
 /** Items marked `isToPack: false` are excluded from every total — the PWA hides them. */
@@ -50,14 +51,21 @@ export function summariseStations(event: PartyEvent): EventStationSummary[] {
 
     let group = groups.get(key);
     if (!group) {
+      // The crew apps key per-station pax and status by catalogue station id
+      // (shared by every slot of that station), not by instance key.
+      const statusKey = item.stationId ?? key;
+      // Stored values are not validated by the mapper; an unknown one must not
+      // crash the status badge, so it falls back like a missing one.
+      const storedStatus = event.stationStatuses[statusKey] ?? event.stationStatuses[key];
       group = {
         instanceId: key,
         stationId: item.stationId,
         name: item.stationName ?? 'Unassigned items',
         itemsTotal: 0,
         itemsPacked: 0,
-        status: event.stationStatuses[key] ?? 'Packing',
-        servings: event.stationServings[key],
+        status:
+          storedStatus && STATION_STATUSES.includes(storedStatus) ? storedStatus : 'Packing',
+        servings: event.stationServings[statusKey] ?? event.stationServings[key],
       };
       groups.set(key, group);
     }

@@ -11,8 +11,7 @@ import { NotFoundError, type CatalogueService } from '../contracts';
 import { COLLECTIONS, getDb } from './config';
 import { mapStation } from './mappers';
 import { nowIso, stripUndefined } from './converters';
-import { matchesSearch, paginate, sortRows } from '@/utils/table';
-import { DEFAULT_PAGE_SIZE } from '@/constants/app';
+import { queryStations } from '@/utils/catalogue';
 import type { StationCatalogue } from '@/types';
 
 function stationsCollection() {
@@ -28,24 +27,8 @@ async function readStation(id: string): Promise<StationCatalogue> {
 /** `stations` — the shared catalogue the PWA clones onto events. */
 export const firebaseCatalogueService: CatalogueService = {
   async list(request) {
-    const { search = '', filters, sort, page = 1, pageSize = DEFAULT_PAGE_SIZE } = request;
-
     const snapshot = await getDocs(stationsCollection());
-    const rows = snapshot.docs
-      .map(mapStation)
-      .map((station) => ({ ...station, itemsCount: station.defaultPackingList.length }))
-      .filter((station) => {
-        if (filters?.category && filters.category !== 'all' && station.category !== filters.category) {
-          return false;
-        }
-        return matchesSearch(station, search, ['name', 'category', 'description']);
-      });
-
-    const sorted = sort
-      ? sortRows(rows, sort.field as keyof (typeof rows)[number], sort.direction)
-      : rows;
-
-    return paginate(sorted, page, pageSize);
+    return queryStations(snapshot.docs.map(mapStation), request);
   },
 
   getById: readStation,
