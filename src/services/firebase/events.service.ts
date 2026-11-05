@@ -5,17 +5,25 @@ import {
   doc,
   getDoc,
   getDocs,
+  runTransaction,
   updateDoc,
 } from 'firebase/firestore';
 import { NotFoundError, type EventService } from '../contracts';
 import { COLLECTIONS, getDb } from './config';
-import { mapEvent } from './mappers';
-import { nowIso, stripUndefined } from './converters';
+import { mapEvent, mapStation } from './mappers';
+import { asArray, asNumber, asRecord, nowIso, stripUndefined } from './converters';
 import { matchesSearch, paginate, sortRows } from '@/utils/table';
 import { sortByEventSchedule } from '@/utils/schedule';
+import {
+  buildLog,
+  duplicatePackingList,
+  expandStationPackingItems,
+  newStationInstanceId,
+  stationInstanceKey,
+} from '@/utils/packing-items';
 import { DEFAULT_PAGE_SIZE } from '@/constants/app';
 import { todayKey } from '@/utils/format';
-import type { PartyEvent } from '@/types';
+import type { PackingItem, PackingLog, PartyEvent } from '@/types';
 
 function eventsCollection() {
   return collection(getDb(), COLLECTIONS.events);
@@ -107,6 +115,149 @@ export const firebaseEventService: EventService = {
       stripUndefined({ ...values, updatedAt: nowIso() }),
     );
     return readEvent(id);
+  },
+
+  async duplicate(sourceId, values) {
+    const source = await getDoc(doc(getDb(), COLLECTIONS.events, sourceId));
+    if (!source.exists()) throw new NotFoundError('Event', sourceId);
+
+    // Work from the raw document, not the mapped model, so items keep exactly
+    // the fields the crew apps wrote (the mappers fill in defaults).
+    const raw = source.data();
+    const timestamp = nowIso();
+    const sourceServings = asNumber(raw.servings);
+
+    const copy = {
+      // Booking details, as edited in the duplicate dialog.
+      eventName: values.eventName,
+      clientName: values.clientName,
+      venue: values.venue,
+      date: values.date,
+      startTime: values.startTime,
+      eventDuration: values.eventDuration,
+      status: values.status,
+      servings: values.servings,
+      notes: values.notes ?? '',
+      // Reusable setup, carried over.
+      paxMode: values.servings === sourceServings ? raw.paxMode : 'manual',
+      servingsPerHour: raw.servingsPerHour,
+      // The mobile app's own schedule fields; absent on PWA-created events.
+      setupTime: typeof raw.setupTime === 'string' ? raw.setupTime : undefined,
+      endTime: typeof raw.endTime === 'string' ? raw.endTime : undefined,
+      assignedStationIds: asArray<string>(raw.assignedStationIds),
+      packingList: duplicatePackingList(asArray<PackingItem>(raw.packingList)),
+      stationServings: asRecord<number>(raw.stationServings),
+      // Event history and progress — never copied.
+      stationStatuses: {},
+      categoryPackedIn: {},
+      logs: [],
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+
+    const reference = await addDoc(eventsCollection(), stripUndefined(copy));
+    await updateDoc(reference, { id: reference.id });
+    return readEvent(reference.id);
+  },
+
+  async addStations(eventId, stationIds, actor) {
+    if (stationIds.length === 0) return readEvent(eventId);
+    const db = getDb();
+    const eventRef = doc(db, COLLECTIONS.events, eventId);
+
+    await runTransaction(db, async (transaction) => {
+      const eventSnap = await transaction.get(eventRef);
+      if (!eventSnap.exists()) throw new NotFoundError('Event', eventId);
+
+      const stationSnaps = await Promise.all(
+        [...new Set(stationIds)].map((id) => transaction.get(doc(db, COLLECTIONS.stations, id))),
+      );
+      const stations = new Map(
+        stationSnaps.flatMap((snap) => {
+          if (!snap.exists()) return [];
+          // Clone the template as stored, not as mapped, for the same reason as above.
+          const rawItems = asArray<PackingItem>(snap.data().defaultPackingList);
+          return [[snap.id, { ...mapStation(snap), defaultPackingList: rawItems }] as const];
+        }),
+      );
+
+      const raw = eventSnap.data();
+      const newItems: PackingItem[] = [];
+      const logs: PackingLog[] = [];
+
+      for (const stationId of stationIds) {
+        const station = stations.get(stationId);
+        if (!station) throw new NotFoundError('Station', stationId);
+        const items = expandStationPackingItems(station, newStationInstanceId(stationId));
+        newItems.push(...items);
+        logs.push(buildLog(actor, `Added station: ${station.name} (${items.length} items)`));
+      }
+
+      transaction.update(
+        eventRef,
+        stripUndefined({
+          packingList: [...asArray<PackingItem>(raw.packingList), ...newItems],
+          assignedStationIds: [...asArray<string>(raw.assignedStationIds), ...stationIds],
+          logs: [...asArray<PackingLog>(raw.logs), ...logs],
+          updatedAt: nowIso(),
+        }),
+      );
+    });
+
+    return readEvent(eventId);
+  },
+
+  async removeStation(eventId, instanceKey, actor) {
+    const db = getDb();
+    const eventRef = doc(db, COLLECTIONS.events, eventId);
+
+    await runTransaction(db, async (transaction) => {
+      const eventSnap = await transaction.get(eventRef);
+      if (!eventSnap.exists()) throw new NotFoundError('Event', eventId);
+
+      const raw = eventSnap.data();
+      const packingList = asArray<PackingItem>(raw.packingList);
+      const removed = packingList.filter((item) => stationInstanceKey(item) === instanceKey);
+      if (removed.length === 0) throw new NotFoundError('Station', instanceKey);
+
+      const kept = packingList.filter((item) => stationInstanceKey(item) !== instanceKey);
+      const stationId = removed.find((item) => item.stationId)?.stationId;
+
+      // `assignedStationIds` holds one entry per slot, so drop exactly one.
+      let assignedStationIds = asArray<string>(raw.assignedStationIds);
+      const slotIndex = stationId ? assignedStationIds.indexOf(stationId) : -1;
+      if (slotIndex >= 0) {
+        assignedStationIds = assignedStationIds.filter((_, index) => index !== slotIndex);
+      }
+
+      // Per-station pax/status are keyed by catalogue id and shared by every slot
+      // of that station. Prune them only once the last slot is gone, so a station
+      // that is re-added later does not inherit a stale value (as the PWA does).
+      const stationServings = { ...asRecord<number>(raw.stationServings) };
+      const stationStatuses = { ...asRecord<string>(raw.stationStatuses) };
+      if (stationId && !kept.some((item) => item.stationId === stationId)) {
+        delete stationServings[stationId];
+        delete stationStatuses[stationId];
+      }
+
+      const name = removed[0]?.stationName ?? 'station';
+      transaction.update(
+        eventRef,
+        stripUndefined({
+          packingList: kept,
+          assignedStationIds,
+          stationServings,
+          stationStatuses,
+          logs: [
+            ...asArray<PackingLog>(raw.logs),
+            buildLog(actor, `Removed station: ${name} (${removed.length} items)`),
+          ],
+          updatedAt: nowIso(),
+        }),
+      );
+    });
+
+    return readEvent(eventId);
   },
 
   async remove(id) {

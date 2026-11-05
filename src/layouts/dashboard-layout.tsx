@@ -1,5 +1,5 @@
-import { useCallback, useEffect } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { useLocation, useNavigate, useOutlet } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '@/utils/cn';
 import { STORAGE_KEYS } from '@/constants/app';
@@ -12,6 +12,20 @@ import { ROUTES } from '@/routes/paths';
 import { Navbar } from './navbar';
 import { SidebarNav } from './sidebar-nav';
 import { EASE_OUT_EXPO } from '@/components/common/motion';
+
+/**
+ * The route element this transition container was created for.
+ *
+ * A plain `<Outlet />` inside the exiting container re-renders with the NEW
+ * location, so the next page mounted inside the fading-out container and then
+ * a second time once the exit finished — losing any state set on first mount
+ * (e.g. a dialog opened on arrival) and running its effects twice.
+ */
+function FrozenOutlet() {
+  const outlet = useOutlet();
+  const [frozen] = useState(outlet);
+  return frozen;
+}
 
 export function DashboardLayout() {
   const navigate = useNavigate();
@@ -80,7 +94,7 @@ export function DashboardLayout() {
               transition={{ duration: 0.26, ease: EASE_OUT_EXPO }}
               className="mx-auto w-full max-w-[100rem] px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
             >
-              <Outlet />
+              <FrozenOutlet />
             </motion.div>
           </AnimatePresence>
         </main>

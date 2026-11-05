@@ -41,8 +41,8 @@ Sign in at `/login` with a Firebase account that has the **admin** role
 | `/login` | Google or email + password. Non-admins are signed straight back out with a clear message. |
 | `/` | Live metrics, events-by-month and users-growth charts, recent events with packing progress, the crew's real packing activity, newest accounts, outstanding-purchases banner. |
 | `/users` | Directory, search / filter / sort, details drawer, **Add user**, promote and demote, resend invite. |
-| `/events` | List with live packing progress; All / Upcoming / Past tabs and a status filter. |
-| `/events/:id` | Packing progress, the full packing list (who packed what, when), per-station rollup, the crew's activity log. |
+| `/events` | List with live packing progress; All / Upcoming / Past tabs and a status filter. **Create** is a two-step flow (booking details → add live stations); **Duplicate** copies an event's setup. |
+| `/events/:id` | Packing progress, the full packing list (who packed what, when), per-station rollup with **add / remove stations**, the crew's activity log, **Duplicate**. |
 | `/catalogue` | Stations as cards or a table; create, edit, duplicate, delete. |
 | `/purchases` | The shopping list: summary tiles that double as filters, overdue flagging, row-level purchased toggle, full CRUD. |
 | `/settings` | Company info and crew-app lists (shared with the PWA), console theme and brand colour (local to the browser). |
@@ -178,9 +178,26 @@ evolved, so older records are missing fields newer ones have (`logs`, `paxMode`,
 `stationInstanceId`) — each mapper supplies a default so one malformed legacy
 document can never blank out a whole screen.
 
-**What this console deliberately does not do:** assign stations to events, edit
-an event's packing list, or tick packing items. Those are crew-app workflows
-tied to the servings maths; the console shows them read-only.
+**Station assignment and duplication.** The console can add catalogue stations
+to an event and remove a station slot. It writes packing items exactly as the
+PWA's `expandStationPackingItems` does (`utils/packing-items.ts` mirrors it):
+one `inst-<stationId>-<id>` slot id per assignment, one `assignedStationIds`
+entry per slot, and per-station pax/status keyed by catalogue station id. These
+writes run in Firestore transactions on the raw document, so a crew member
+ticking items at the same moment is never overwritten. **Duplicate** copies the
+booking, stations, packing items and per-station pax with fresh item/slot ids,
+and resets packed/loaded ticks, station statuses, `categoryPackedIn` and the
+activity log.
+
+**What this console deliberately does not do:** edit individual packing items
+or tick them. Those are crew-app workflows tied to the servings maths; the
+console shows them read-only.
+
+**Catalogue loading.** Every station document embeds its full default packing
+list (~570 KB for 150 stations), so the catalogue is read **once** into the
+TanStack cache and searched, filtered, sorted and paged in memory
+(`utils/catalogue.ts`). Do not go back to one Firestore read per page or
+keystroke.
 
 ---
 

@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
   ArrowRight,
@@ -37,7 +37,7 @@ import { useDisclosure } from '@/hooks/use-disclosure';
 import { useAuth } from '@/providers/auth-provider';
 import { formatDate, formatNumber, formatRelative } from '@/utils/format';
 import { formatClockTime } from '@/utils/schedule';
-import { ROUTES, eventDetailsPath } from '@/routes/paths';
+import { ROUTES, eventDetailsPath, type EventDetailsLocationState } from '@/routes/paths';
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -48,6 +48,7 @@ function greeting(): string {
 
 export default function DashboardPage() {
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const overview = useDashboardOverview();
   const recentEvents = useRecentEvents(5);
   const recentUsers = useRecentUsers(5);
@@ -339,7 +340,13 @@ export default function DashboardPage() {
         open={eventDialog.isOpen}
         onOpenChange={eventDialog.setOpen}
         loading={createEvent.isPending}
-        onSubmit={(values) => createEvent.mutateAsync(values)}
+        onSubmit={async (values) => {
+          const created = await createEvent.mutateAsync(values);
+          // Step 2: the details page opens the station picker for the new event.
+          navigate(eventDetailsPath(created.id), {
+            state: { addStations: true } satisfies EventDetailsLocationState,
+          });
+        }}
       />
 
       <CatalogueFormDialog

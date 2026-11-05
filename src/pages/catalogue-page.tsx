@@ -53,6 +53,20 @@ import type {
 
 const INITIAL_FILTERS: Required<CatalogueFilters> = { category: 'all' };
 
+/** Turn a Firestore failure into something an operator can act on. */
+function describeLoadError(error: unknown): string {
+  const code = (error as { code?: string } | null)?.code;
+  if (code === 'permission-denied') {
+    return 'Your account is not allowed to read the catalogue. Sign out and back in, or ask an admin to check your access.';
+  }
+  if (code === 'unavailable' || code === 'deadline-exceeded') {
+    return 'The database could not be reached. Check your connection and try again.';
+  }
+  return error instanceof Error && error.message
+    ? `The catalogue could not be loaded: ${error.message}`
+    : 'The catalogue could not be loaded. Check your connection and try again.';
+}
+
 export default function CataloguePage() {
   const [view, setView] = useLocalStorage<CatalogueViewMode>(STORAGE_KEYS.catalogueView, 'grid');
 
@@ -63,7 +77,7 @@ export default function CataloguePage() {
     pageSize: 12,
   });
 
-  const { data, isPending, isError, refetch } = useCatalogues(table.query);
+  const { data, isPending, isError, error, refetch, isRefetching } = useCatalogues(table.query);
   const { data: allStations } = useAllCatalogues();
 
   // Categories are free text in the PWA, so the filter options are derived from
@@ -241,6 +255,7 @@ export default function CataloguePage() {
           allStations ? (
             <span className="text-sm text-muted-foreground">
               {allStations.length} stations across {categories.length} categories
+              {isRefetching ? ' · refreshing…' : ''}
             </span>
           ) : null
         }
@@ -312,7 +327,11 @@ export default function CataloguePage() {
 
       {isError ? (
         <Card>
-          <ErrorState onRetry={() => void refetch()} />
+          <ErrorState
+            title="Could not load the station catalogue"
+            description={describeLoadError(error)}
+            onRetry={() => void refetch()}
+          />
         </Card>
       ) : view === 'grid' ? (
         <>

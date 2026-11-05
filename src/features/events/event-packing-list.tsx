@@ -38,7 +38,7 @@ export function EventPackingList({ items }: { items: PackingItem[] }) {
         size="sm"
         icon={PackageOpen}
         title="Nothing to pack yet"
-        description="Assign stations to this event in the crew app to generate its packing list."
+        description="Add stations to this event (Stations → Add) to generate its packing list."
       />
     );
   }
